@@ -1,0 +1,27 @@
+# Homophily Study - UV Project Configuration
+# Easy to run: `uv run app.py` or `uv run uvicorn app:app --reload`
+
+[project]
+name = "homophily-study"
+version = "1.0.0"
+description = "AI Conversation Study - Investigating human-AI interaction and homophily effects"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Researcher", email = "research@university.edu" }]
+
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "openai>=1.50.0",
+    "python-dotenv>=1.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "httpx>=0.27.0",
+]
+
+[tool.uv]
+# Use uv run app.py to start the server

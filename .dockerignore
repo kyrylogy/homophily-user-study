@@ -1,0 +1,13 @@
+.git
+.gitignore
+.env
+.env.example
+.venv
+__pycache__
+*.pyc
+*.pyo
+data/*.csv
+.DS_Store
+README.md
+pyproject.toml
+uv.lock

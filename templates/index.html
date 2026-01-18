@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homophily Study</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header (hidden on welcome) -->
+        <div class="header" id="main-header" style="display: none;">
+            <h1>💬 AI Conversation Study</h1>
+            <p>Understanding human-AI interaction</p>
+        </div>
+
+        <!-- Progress (hidden on welcome) -->
+        <div class="progress-container" id="progress-container" style="display: none;">
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: 0%"></div>
+            </div>
+            <div class="progress-text">Welcome</div>
+        </div>
+
+        <!-- Section: Welcome -->
+        <div id="welcome" class="section active">
+            <div class="welcome-hero">
+                <div class="welcome-icon">💬</div>
+                <h1>AI Conversation Study</h1>
+                <p class="welcome-subtitle">Help us understand how humans interact with AI</p>
+            </div>
+            
+            <div class="welcome-card">
+                <div class="welcome-steps">
+                    <div class="step">
+                        <div class="step-icon">📋</div>
+                        <div class="step-content">
+                            <h3>Quick Profile</h3>
+                            <p>~3 minutes</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-icon">🤖</div>
+                        <div class="step-content">
+                            <h3>Two Chats</h3>
+                            <p>Talk with AI bots</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-icon">⭐</div>
+                        <div class="step-content">
+                            <h3>Rate & Done</h3>
+                            <p>Share your feedback</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="welcome-info">
+                    <p>Your responses are <strong>anonymous</strong> and used for research only.</p>
+                </div>
+                
+                <button id="start-btn" class="btn btn-primary btn-large" onclick="startStudy()">
+                    Begin Study
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Section: Profile Questionnaire -->
+        <div id="profile" class="section">
+            <form id="profile-form">
+                <div class="card">
+                    <h2>About You</h2>
+                    
+                    <div class="form-group">
+                        <label for="age">Age Group</label>
+                        <select name="age" id="age" required>
+                            <option value="">Select...</option>
+                            <option value="18-24">18-24</option>
+                            <option value="25-34">25-34</option>
+                            <option value="35-44">35-44</option>
+                            <option value="45-54">45-54</option>
+                            <option value="55-64">55-64</option>
+                            <option value="65+">65+</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="gender">Gender</label>
+                        <select name="gender" id="gender" required>
+                            <option value="">Select...</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="non-binary">Non-binary</option>
+                            <option value="prefer-not">Prefer not to say</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="education">Education Level</label>
+                        <select name="education" id="education" required>
+                            <option value="">Select...</option>
+                            <option value="high-school">High school or less</option>
+                            <option value="some-college">Some college</option>
+                            <option value="bachelors">Bachelor's degree</option>
+                            <option value="masters">Master's degree</option>
+                            <option value="doctorate">Doctorate or higher</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Personality</h2>
+                    <p>Rate how well each pair of traits describes you.</p>
+                    <p style="font-size: 0.9rem; color: #888;">I see myself as...</p>
+                    
+                    <div id="tipi-items">
+                        <!-- Dynamically generated -->
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Your Interests</h2>
+                    
+                    <div class="form-group">
+                        <label for="interests">What are your main interests or hobbies?</label>
+                        <textarea name="interests" id="interests" placeholder="E.g., reading, hiking, cooking, technology..." required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="communication_style">How would you describe your communication style?</label>
+                        <select name="communication_style" id="communication_style" required>
+                            <option value="">Select...</option>
+                            <option value="formal">Formal and professional</option>
+                            <option value="casual">Casual and friendly</option>
+                            <option value="direct">Direct and to the point</option>
+                            <option value="thoughtful">Thoughtful and elaborate</option>
+                            <option value="humorous">Humorous and playful</option>
+                        </select>
+                    </div>
+                    
+                    <div class="btn-group" style="justify-content: flex-end;">
+                        <button type="button" class="btn btn-primary" onclick="submitProfile()">
+                            Continue to Chat
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Section: Chat -->
+        <div id="chat" class="section">
+            <div class="chat-container">
+                <div class="chat-header">
+                    <h2>Conversation 1 of 2</h2>
+                    <div class="subtitle">Chat freely - ask questions, share thoughts, or just have a conversation.</div>
+                    <div class="bot-indicator">
+                        <span class="dot"></span>
+                        <span>Bot Online</span>
+                    </div>
+                </div>
+                
+                <div class="chat-messages" id="chat-messages">
+                    <!-- Messages appear here -->
+                </div>
+                
+                <div id="message-counter" class="message-counter">6 messages to go</div>
+                
+                <div class="chat-input-container">
+                    <input 
+                        type="text" 
+                        id="chat-input" 
+                        class="chat-input" 
+                        placeholder="Type your message..." 
+                        onkeypress="handleChatKeypress(event)"
+                        autocomplete="off"
+                    >
+                    <button id="send-btn" class="send-btn" onclick="sendMessage()" aria-label="Send message">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <button 
+                id="chat-next-btn" 
+                class="btn btn-primary" 
+                onclick="proceedToRating()" 
+                style="display: none; margin-top: 20px; width: 100%;"
+            >
+                Proceed to Rating
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Section: Rating -->
+        <div id="rating" class="section">
+            <form id="rating-form">
+                <div class="card">
+                    <h2>Rate Chatbot 1</h2>
+                    <p>Please rate your experience with this chatbot on each of the following statements.</p>
+                    
+                    <div id="rating-questions">
+                        <!-- Dynamically generated -->
+                    </div>
+                    
+                    <div class="btn-group" style="justify-content: flex-end;">
+                        <button type="button" class="btn btn-primary" onclick="submitRating()">
+                            Submit & Continue
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Section: Complete -->
+        <div id="complete" class="section">
+            <div class="card thank-you">
+                <div class="icon">🎉</div>
+                <h2>Thank You!</h2>
+                <p>You have completed the study.</p>
+                <p style="margin-top: 20px;">
+                    Your responses have been recorded anonymously and will help us better understand human-AI interaction.
+                </p>
+                <p style="margin-top: 30px; font-size: 0.9rem; color: var(--gray-400);">
+                    You can close this window now.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js?v=5"></script>
+</body>
+</html>
