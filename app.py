@@ -34,22 +34,59 @@ async def home():
 
 @app.post("/api/start")
 async def start_session():
-    """Start a new participant session."""
+    """Start a new participant session with counterbalance assignment."""
     participant_id = str(uuid.uuid4())[:8]
-    db.create_participant(participant_id)
-    return {"participant_id": participant_id}
+    
+    # Counterbalancing: alternate between group A and B
+    count = db.get_participant_count()
+    group = "A" if count % 2 == 0 else "B"
+    
+    db.create_participant(participant_id, group)
+    return {"participant_id": participant_id, "group": group}
 
 
 @app.post("/api/profile")
 async def save_profile(request: Request):
-    """Save participant profile/questionnaire."""
+    """Save participant profile and return assignment."""
     data = await request.json()
     participant_id = data.get("participant_id")
     if not participant_id:
         raise HTTPException(400, "Missing participant_id")
     
-    db.save_profile(participant_id, data.get("profile", {}))
-    return {"status": "ok"}
+    # Save profile and get personality analysis
+    result = db.save_profile(participant_id, data.get("profile", {}))
+    
+    # Get participant's group assignment
+    participant = db.get_participant(participant_id)
+    group = participant.get('group', 'A')
+    is_outlier = result['is_outlier']
+    
+    # Determine bot assignment based on group and outlier status
+    # Group A: Chat1=HighMatch+TopicA, Chat2=LowMatch+TopicB
+    # Group B: Chat1=LowMatch+TopicB, Chat2=HighMatch+TopicA
+    # If outlier (Low E/Low A): FLIP the match labels (their "match" is the reserved bot)
+    
+    if group == "A":
+        chat1_bot = "low_match" if is_outlier else "high_match"
+        chat1_topic = config.TOPIC_A
+        chat2_bot = "high_match" if is_outlier else "low_match"
+        chat2_topic = config.TOPIC_B
+    else:  # Group B
+        chat1_bot = "high_match" if is_outlier else "low_match"
+        chat1_topic = config.TOPIC_B
+        chat2_bot = "low_match" if is_outlier else "high_match"
+        chat2_topic = config.TOPIC_A
+    
+    return {
+        "status": "ok",
+        "assignment": {
+            "group": group,
+            "is_outlier": is_outlier,
+            "big_five": result['big_five'],
+            "chat1": {"bot_type": chat1_bot, "topic": chat1_topic},
+            "chat2": {"bot_type": chat2_bot, "topic": chat2_topic}
+        }
+    }
 
 
 @app.post("/api/chat")
@@ -63,21 +100,26 @@ async def chat(request: Request):
     if not participant_id or not message:
         raise HTTPException(400, "Missing participant_id or message")
     
+    # Get bot type and topic from request
+    bot_type = data.get("bot_type", "high_match")
+    topic = data.get("topic", {})
+    topic_title = topic.get("title", "general discussion")
+    topic_id = topic.get("id", "unknown")
+    
     # Save user message
-    db.save_message(participant_id, phase, "user", message)
+    db.save_message(participant_id, phase, "user", message, bot_type, topic_id)
     
     # Get chat history
     history = db.get_messages(participant_id, phase)
     
-    # Select model and prompt based on phase
-    if phase == 1:
-        model = config.BOT_1_MODEL
-        system_prompt = config.BOT_1_SYSTEM_PROMPT
-        temperature = config.BOT_1_TEMPERATURE
+    # Select prompt based on bot type
+    if bot_type == "high_match":
+        system_prompt = config.HIGH_MATCH_PROMPT.format(topic=topic_title)
     else:
-        model = config.BOT_2_MODEL
-        system_prompt = config.BOT_2_SYSTEM_PROMPT
-        temperature = config.BOT_2_TEMPERATURE
+        system_prompt = config.LOW_MATCH_PROMPT.format(topic=topic_title)
+    
+    model = config.BOT_MODEL
+    temperature = config.BOT_TEMPERATURE
     
     # Build messages for API
     messages = [{"role": "system", "content": system_prompt}] + history
@@ -95,7 +137,7 @@ async def chat(request: Request):
         bot_response = f"[Error: {str(e)}]"
     
     # Save bot response
-    db.save_message(participant_id, phase, "assistant", bot_response, model)
+    db.save_message(participant_id, phase, "assistant", bot_response, bot_type, topic_id, model)
     
     # Check if phase should end
     message_count = db.get_message_count(participant_id, phase)
@@ -120,21 +162,26 @@ async def chat_stream(request: Request):
     if not participant_id or not message:
         raise HTTPException(400, "Missing participant_id or message")
     
+    # Get bot type and topic from request
+    bot_type = data.get("bot_type", "high_match")
+    topic = data.get("topic", {})
+    topic_title = topic.get("title", "general discussion")
+    topic_id = topic.get("id", "unknown")
+    
     # Save user message
-    db.save_message(participant_id, phase, "user", message)
+    db.save_message(participant_id, phase, "user", message, bot_type, topic_id)
     
     # Get chat history
     history = db.get_messages(participant_id, phase)
     
-    # Select model and prompt based on phase
-    if phase == 1:
-        model = config.BOT_1_MODEL
-        system_prompt = config.BOT_1_SYSTEM_PROMPT
-        temperature = config.BOT_1_TEMPERATURE
+    # Select prompt based on bot type
+    if bot_type == "high_match":
+        system_prompt = config.HIGH_MATCH_PROMPT.format(topic=topic_title)
     else:
-        model = config.BOT_2_MODEL
-        system_prompt = config.BOT_2_SYSTEM_PROMPT
-        temperature = config.BOT_2_TEMPERATURE
+        system_prompt = config.LOW_MATCH_PROMPT.format(topic=topic_title)
+    
+    model = config.BOT_MODEL
+    temperature = config.BOT_TEMPERATURE
     
     messages = [{"role": "system", "content": system_prompt}] + history
     
@@ -155,7 +202,7 @@ async def chat_stream(request: Request):
                     yield f"data: {json.dumps({'content': content})}\n\n"
             
             # Save complete response
-            db.save_message(participant_id, phase, "assistant", full_response, model)
+            db.save_message(participant_id, phase, "assistant", full_response, bot_type, topic_id, model)
             
             # Send completion signal
             message_count = db.get_message_count(participant_id, phase)
@@ -173,12 +220,29 @@ async def save_rating(request: Request):
     data = await request.json()
     participant_id = data.get("participant_id")
     phase = data.get("phase", 1)
+    bot_type = data.get("bot_type", "")
+    topic_id = data.get("topic_id", "")
     rating = data.get("rating", {})
     
     if not participant_id:
         raise HTTPException(400, "Missing participant_id")
     
-    db.save_rating(participant_id, phase, rating)
+    db.save_rating(participant_id, phase, bot_type, topic_id, rating)
+    return {"status": "ok"}
+
+
+@app.post("/api/preference")
+async def save_preference(request: Request):
+    """Save final bot preference (which bot user preferred)."""
+    data = await request.json()
+    participant_id = data.get("participant_id")
+    preferred_bot = data.get("preferred_bot", "")  # "first" or "second"
+    reason = data.get("reason", "")
+    
+    if not participant_id:
+        raise HTTPException(400, "Missing participant_id")
+    
+    db.save_preference(participant_id, preferred_bot, reason)
     return {"status": "ok"}
 
 
@@ -207,7 +271,11 @@ async def get_config():
     return {
         "messages_per_bot": config.MESSAGES_PER_BOT,
         "tipi_items": config.TIPI_ITEMS,
-        "rating_questions": config.RATING_QUESTIONS
+        "rating_questions": config.RATING_QUESTIONS,
+        "topics": {
+            "a": config.TOPIC_A,
+            "b": config.TOPIC_B
+        }
     }
 
 

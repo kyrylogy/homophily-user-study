@@ -457,6 +457,52 @@ body::before {
     padding: 0 4px;
 }
 
+/* Preference Options */
+.preference-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.preference-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    background: white;
+    border: 2px solid var(--gray-200);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.preference-option:hover {
+    border-color: var(--primary-300);
+    background: var(--primary-50);
+}
+
+.preference-option input {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--primary-500);
+}
+
+.preference-option input:checked + .preference-label {
+    color: var(--primary-700);
+    font-weight: 600;
+}
+
+.preference-option:has(input:checked) {
+    border-color: var(--primary-500);
+    background: var(--primary-50);
+}
+
+.preference-label {
+    font-size: 1rem;
+    color: var(--gray-700);
+}
+
 /* Buttons */
 .btn {
     display: inline-flex;

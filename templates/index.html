@@ -30,7 +30,7 @@
         <div id="welcome" class="section active">
             <div class="welcome-hero">
                 <div class="welcome-icon">💬</div>
-                <h1>AI Conversation Study</h1>
+                <h1>AI conversation study</h1>
                 <p class="welcome-subtitle">Help us understand how humans interact with AI</p>
             </div>
             
@@ -39,21 +39,21 @@
                     <div class="step">
                         <div class="step-icon">📋</div>
                         <div class="step-content">
-                            <h3>Quick Profile</h3>
+                            <h3>Quick profile</h3>
                             <p>~3 minutes</p>
                         </div>
                     </div>
                     <div class="step">
                         <div class="step-icon">🤖</div>
                         <div class="step-content">
-                            <h3>Two Chats</h3>
-                            <p>Talk with AI bots</p>
+                            <h3>Two chats</h3>
+                            <p>Discuss topics with AI</p>
                         </div>
                     </div>
                     <div class="step">
                         <div class="step-icon">⭐</div>
                         <div class="step-content">
-                            <h3>Rate & Done</h3>
+                            <h3>Rate & done</h3>
                             <p>Share your feedback</p>
                         </div>
                     </div>
@@ -64,7 +64,7 @@
                 </div>
                 
                 <button id="start-btn" class="btn btn-primary btn-large" onclick="startStudy()">
-                    Begin Study
+                    Begin study
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M5 12h14M12 5l7 7-7 7"/>
                     </svg>
@@ -76,10 +76,10 @@
         <div id="profile" class="section">
             <form id="profile-form">
                 <div class="card">
-                    <h2>About You</h2>
+                    <h2>About you</h2>
                     
                     <div class="form-group">
-                        <label for="age">Age Group</label>
+                        <label for="age">Age group</label>
                         <select name="age" id="age" required>
                             <option value="">Select...</option>
                             <option value="18-24">18-24</option>
@@ -103,7 +103,7 @@
                     </div>
                     
                     <div class="form-group">
-                        <label for="education">Education Level</label>
+                        <label for="education">Education level</label>
                         <select name="education" id="education" required>
                             <option value="">Select...</option>
                             <option value="high-school">High school or less</option>
@@ -126,7 +126,7 @@
                 </div>
 
                 <div class="card">
-                    <h2>Your Interests</h2>
+                    <h2>Your interests</h2>
                     
                     <div class="form-group">
                         <label for="interests">What are your main interests or hobbies?</label>
@@ -147,7 +147,7 @@
                     
                     <div class="btn-group" style="justify-content: flex-end;">
                         <button type="button" class="btn btn-primary" onclick="submitProfile()">
-                            Continue to Chat
+                            Continue to chat
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M5 12h14M12 5l7 7-7 7"/>
                             </svg>
@@ -198,7 +198,7 @@
                 onclick="proceedToRating()" 
                 style="display: none; margin-top: 20px; width: 100%;"
             >
-                Proceed to Rating
+                Proceed to rating
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M5 12h14M12 5l7 7-7 7"/>
                 </svg>
@@ -218,7 +218,49 @@
                     
                     <div class="btn-group" style="justify-content: flex-end;">
                         <button type="button" class="btn btn-primary" onclick="submitRating()">
-                            Submit & Continue
+                            Submit & continue
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Section: Preference -->
+        <div id="preference" class="section">
+            <form id="preference-form">
+                <div class="card">
+                    <h2>Final question</h2>
+                    <p>You've now chatted with two different AI assistants. We'd like to know which one you preferred.</p>
+                    
+                    <div class="form-group">
+                        <label>Which assistant did you prefer working with?</label>
+                        <div class="preference-options">
+                            <label class="preference-option">
+                                <input type="radio" name="preferred_bot" value="first" required>
+                                <span class="preference-label">The first assistant</span>
+                            </label>
+                            <label class="preference-option">
+                                <input type="radio" name="preferred_bot" value="second" required>
+                                <span class="preference-label">The second assistant</span>
+                            </label>
+                            <label class="preference-option">
+                                <input type="radio" name="preferred_bot" value="no_preference" required>
+                                <span class="preference-label">No preference</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Why did you prefer that assistant? (optional)</label>
+                        <textarea name="preference_reason" placeholder="What made one assistant better than the other?"></textarea>
+                    </div>
+                    
+                    <div class="btn-group" style="justify-content: flex-end;">
+                        <button type="button" class="btn btn-primary" onclick="submitPreference()">
+                            Complete study
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M5 12h14M12 5l7 7-7 7"/>
                             </svg>
@@ -232,7 +274,7 @@
         <div id="complete" class="section">
             <div class="card thank-you">
                 <div class="icon">🎉</div>
-                <h2>Thank You!</h2>
+                <h2>Thank you!</h2>
                 <p>You have completed the study.</p>
                 <p style="margin-top: 20px;">
                     Your responses have been recorded anonymously and will help us better understand human-AI interaction.
@@ -244,6 +286,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=5"></script>
+    <script src="/static/app.js?v=6"></script>
 </body>
 </html>

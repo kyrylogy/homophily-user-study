@@ -1,13 +1,16 @@
 /**
  * Homophily Study - Frontend JavaScript
- * Modern, clean, with streaming support.
+ * Modern, clean, with streaming support and counterbalancing.
  */
 
 // State
 let state = {
     participantId: null,
-    phase: 0, // 0=welcome, 1=profile, 2=chat1, 3=rating1, 4=chat2, 5=rating2, 6=done
-    chatPhase: 1,
+    group: null,           // A or B (counterbalance)
+    isOutlier: false,      // Low E/Low A user (flipped assignment)
+    assignment: null,      // Bot assignments from server
+    phase: 0,              // 0=welcome, 1=profile, 2=chat1, 3=rating1, 4=chat2, 5=rating2, 6=preference, 7=done
+    chatPhase: 1,          // 1 or 2
     messageCount: 0,
     messagesRequired: 6,
     config: null,
@@ -27,6 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         profile: document.getElementById('profile'),
         chat: document.getElementById('chat'),
         rating: document.getElementById('rating'),
+        preference: document.getElementById('preference'),
         complete: document.getElementById('complete')
     };
     
@@ -62,6 +66,12 @@ async function api(endpoint, data = null) {
     return res.json();
 }
 
+// Get current chat assignment
+function getCurrentChat() {
+    if (!state.assignment) return { bot_type: 'high_match', topic: { title: 'general', id: 'unknown' } };
+    return state.chatPhase === 1 ? state.assignment.chat1 : state.assignment.chat2;
+}
+
 // Section management
 function showSection(name) {
     Object.values(sections).forEach(el => {
@@ -92,9 +102,10 @@ function showSection(name) {
 function updateProgress() {
     const progressMap = {
         welcome: 0,
-        profile: 20,
-        chat: state.chatPhase === 1 ? 40 : 70,
-        rating: state.chatPhase === 1 ? 55 : 85,
+        profile: 15,
+        chat: state.chatPhase === 1 ? 35 : 65,
+        rating: state.chatPhase === 1 ? 50 : 80,
+        preference: 90,
         complete: 100
     };
     
@@ -110,9 +121,10 @@ function updateProgress() {
 function getProgressText() {
     const texts = {
         welcome: 'Welcome',
-        profile: 'Step 1: Your Profile',
-        chat: `Step ${state.chatPhase + 1}: Conversation ${state.chatPhase}`,
-        rating: `Step ${state.chatPhase + 2}: Rate Chatbot ${state.chatPhase}`,
+        profile: 'Step 1: your profile',
+        chat: `Step ${state.chatPhase + 1}: conversation ${state.chatPhase}`,
+        rating: `Step ${state.chatPhase + 2}: rate assistant ${state.chatPhase}`,
+        preference: 'Final step: your preference',
         complete: 'Complete!'
     };
     const current = Object.keys(sections).find(k => sections[k] && sections[k].classList.contains('active'));
@@ -192,10 +204,15 @@ async function submitProfile() {
     });
     
     try {
-        await api('/profile', {
+        const result = await api('/profile', {
             participant_id: state.participantId,
             profile: profile
         });
+        
+        // Store assignment from server
+        state.assignment = result.assignment;
+        state.isOutlier = result.assignment.is_outlier;
+        console.log('Assignment received:', state.assignment);
         
         state.chatPhase = 1;
         startChat();
@@ -212,6 +229,10 @@ async function submitProfile() {
 function startChat() {
     state.messageCount = 0;
     state.isStreaming = false;
+    
+    const chatInfo = getCurrentChat();
+    console.log('Starting chat:', state.chatPhase, chatInfo);
+    
     updateChatHeader();
     document.getElementById('chat-messages').innerHTML = '';
     updateMessageCounter();
@@ -224,11 +245,17 @@ function startChat() {
 }
 
 function updateChatHeader() {
+    const chatInfo = getCurrentChat();
+    const topicTitle = chatInfo.topic.title || 'Discussion';
+    
     document.querySelector('.chat-header h2').textContent = `Conversation ${state.chatPhase} of 2`;
-    document.querySelector('.chat-header .subtitle').textContent = 
-        state.chatPhase === 1 
-            ? 'Chat freely - ask questions, share thoughts, or just have a conversation.'
-            : 'You\'re now chatting with a different AI assistant.';
+    document.querySelector('.chat-header .subtitle').textContent = `Topic: ${topicTitle}`;
+    
+    // Update topic display if exists
+    const topicDisplay = document.getElementById('chat-topic');
+    if (topicDisplay) {
+        topicDisplay.textContent = topicTitle;
+    }
 }
 
 function updateMessageCounter() {
@@ -240,7 +267,7 @@ function updateMessageCounter() {
         counter.style.background = 'var(--primary-50)';
         counter.style.color = 'var(--primary-600)';
     } else {
-        counter.textContent = '✓ Minimum reached - continue chatting or proceed to rating';
+        counter.textContent = '✓ Minimum reached - continue or proceed to rating';
         counter.style.background = 'rgba(16, 185, 129, 0.1)';
         counter.style.color = '#059669';
     }
@@ -302,6 +329,9 @@ async function sendMessage() {
     addMessage(message, true);
     showTypingIndicator();
     
+    // Get current chat assignment
+    const chatInfo = getCurrentChat();
+    
     try {
         // Use streaming endpoint
         const response = await fetch('/api/chat/stream', {
@@ -310,7 +340,9 @@ async function sendMessage() {
             body: JSON.stringify({
                 participant_id: state.participantId,
                 phase: state.chatPhase,
-                message: message
+                message: message,
+                bot_type: chatInfo.bot_type,
+                topic: chatInfo.topic
             })
         });
         
@@ -393,7 +425,7 @@ function buildRatingForm() {
     
     // Update title
     const title = document.querySelector('#rating .card h2');
-    if (title) title.textContent = `Rate Chatbot ${state.chatPhase}`;
+    if (title) title.textContent = `Rate assistant ${state.chatPhase}`;
     
     state.config.rating_questions.forEach(q => {
         container.innerHTML += `
@@ -418,7 +450,7 @@ function buildRatingForm() {
     // Add open response
     container.innerHTML += `
         <div class="form-group">
-            <label>What stood out about this chatbot? (optional)</label>
+            <label>What stood out about this assistant? (optional)</label>
             <textarea name="open_response" placeholder="Share your thoughts about this conversation..."></textarea>
         </div>
     `;
@@ -441,10 +473,15 @@ async function submitRating() {
         rating[key] = value;
     });
     
+    // Get current chat info for metadata
+    const chatInfo = getCurrentChat();
+    
     try {
         await api('/rating', {
             participant_id: state.participantId,
             phase: state.chatPhase,
+            bot_type: chatInfo.bot_type,
+            topic_id: chatInfo.topic.id,
             rating: rating
         });
         
@@ -456,13 +493,46 @@ async function submitRating() {
             state.chatPhase = 2;
             startChat();
         } else {
-            // Complete
-            await api('/complete', { participant_id: state.participantId });
-            showSection('complete');
+            // Show preference selection
+            showSection('preference');
         }
     } catch (e) {
         console.error('Failed to submit rating:', e);
         alert('Failed to submit rating. Please try again.');
+    } finally {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+    }
+}
+
+// Final preference submission
+async function submitPreference() {
+    const form = document.getElementById('preference-form');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    const btn = form.querySelector('.btn-primary');
+    btn.classList.add('loading');
+    btn.disabled = true;
+    
+    const formData = new FormData(form);
+    const preferredBot = formData.get('preferred_bot');
+    const reason = formData.get('preference_reason') || '';
+    
+    try {
+        await api('/preference', {
+            participant_id: state.participantId,
+            preferred_bot: preferredBot,
+            reason: reason
+        });
+        
+        await api('/complete', { participant_id: state.participantId });
+        showSection('complete');
+    } catch (e) {
+        console.error('Failed to submit preference:', e);
+        alert('Failed to submit. Please try again.');
     } finally {
         btn.classList.remove('loading');
         btn.disabled = false;
