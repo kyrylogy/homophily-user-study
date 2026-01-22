@@ -420,40 +420,51 @@ function proceedToRating() {
 function buildRatingForm() {
     const container = document.getElementById('rating-questions');
     if (!state.config || !container) return;
-    
-    container.innerHTML = '';
-    
+
     // Update title
     const title = document.querySelector('#rating .card h2');
     if (title) title.textContent = `Rate assistant ${state.chatPhase}`;
-    
-    state.config.rating_questions.forEach(q => {
-        container.innerHTML += `
-            <div class="form-group">
-                <label>${q.text}</label>
-                <div class="likert-scale">
-                    ${[1,2,3,4,5,6,7].map(n => `
-                        <div class="likert-option">
-                            <input type="radio" name="${q.id}" id="${q.id}_${n}" value="${n}" required>
-                            <label for="${q.id}_${n}">${n}</label>
-                        </div>
-                    `).join('')}
-                </div>
-                <div class="likert-labels">
-                    <span>Strongly disagree</span>
-                    <span>Strongly agree</span>
-                </div>
-            </div>
-        `;
+
+    const trustQuestions = [
+        'I am confident in the AI assistant.',
+        'The AI assistant is reliable.',
+        'I can trust the AI assistant.'
+    ];
+
+    const engagementQuestions = [
+        'I lost myself in the conversation.',
+        'The time spent with the DHA just slipped away.',
+        'I was absorbed in the conversation.',
+        'I would recommend this DHA.',
+        'The conversation with the DHA was rewarding.',
+        'I felt involved in this experience.'
+    ];
+
+    let html = '';
+
+    // Render trust (first 3) then engagement (next 6) as plain sequential questions
+    trustQuestions.forEach((q, idx) => {
+        const num = idx + 1;
+        html += `<div class="form-group"><label>${num}. ${q}</label><div class="likert-scale">`;
+        for (let n = 1; n <= 7; n++) {
+            html += `<div class="likert-option"><input type="radio" name="trust_${num}" id="trust_${num}_${n}" value="${n}" required><label for="trust_${num}_${n}">${n}</label></div>`;
+        }
+        html += `</div></div>`;
     });
-    
-    // Add open response
-    container.innerHTML += `
-        <div class="form-group">
-            <label>What stood out about this assistant? (optional)</label>
-            <textarea name="open_response" placeholder="Share your thoughts about this conversation..."></textarea>
-        </div>
-    `;
+
+    engagementQuestions.forEach((q, idx) => {
+        const num = idx + 1; // 1..6
+        const displayNum = trustQuestions.length + num; // continue numbering
+        html += `<div class="form-group"><label>${displayNum}. ${q}</label><div class="likert-scale">`;
+        for (let n = 1; n <= 7; n++) {
+            html += `<div class="likert-option"><input type="radio" name="engagement_${num}" id="engagement_${num}_${n}" value="${n}" required><label for="engagement_${num}_${n}">${n}</label></div>`;
+        }
+        html += `</div></div>`;
+    });
+
+    html += `<div class="form-group"><label>What stood out about this assistant? (optional)</label><textarea name="open_response" placeholder="Share your thoughts about this conversation..."></textarea></div>`;
+
+    container.innerHTML = html;
 }
 
 async function submitRating() {
@@ -467,15 +478,42 @@ async function submitRating() {
     btn.classList.add('loading');
     btn.disabled = true;
     
-    const formData = new FormData(form);
+    // Collect and compute trust & engagement aggregates
+    const fd = new FormData(form);
     const rating = {};
-    formData.forEach((value, key) => {
-        rating[key] = value;
-    });
-    
+
+    // Trust items (1-3)
+    const trust_vals = [1,2,3].map(i => parseInt(fd.get(`trust_${i}`), 10));
+    const trust_score = trust_vals.reduce((a,b)=>a+b,0)/trust_vals.length;
+    rating.trust_item1 = trust_vals[0];
+    rating.trust_item2 = trust_vals[1];
+    rating.trust_item3 = trust_vals[2];
+    rating.trust = trust_score.toFixed(3);
+
+    // Engagement items (1-6). Items 1-3 = FA, 4-6 = RW
+    const eng_vals = [1,2,3,4,5,6].map(i => parseInt(fd.get(`engagement_${i}`), 10));
+    const fa_vals = eng_vals.slice(0,3);
+    const rw_vals = eng_vals.slice(3,6);
+    const fa_score = fa_vals.reduce((a,b)=>a+b,0)/fa_vals.length;
+    const rw_score = rw_vals.reduce((a,b)=>a+b,0)/rw_vals.length;
+    const engagement_score = eng_vals.reduce((a,b)=>a+b,0)/eng_vals.length;
+
+    rating.fa_item1 = fa_vals[0];
+    rating.fa_item2 = fa_vals[1];
+    rating.fa_item3 = fa_vals[2];
+    rating.rw_item1 = rw_vals[0];
+    rating.rw_item2 = rw_vals[1];
+    rating.rw_item3 = rw_vals[2];
+    rating.fa = fa_score.toFixed(3);
+    rating.rw = rw_score.toFixed(3);
+    rating.engagement = engagement_score.toFixed(3);
+
+    // Open response
+    rating.open_response = fd.get('open_response') || '';
+
     // Get current chat info for metadata
     const chatInfo = getCurrentChat();
-    
+
     try {
         await api('/rating', {
             participant_id: state.participantId,

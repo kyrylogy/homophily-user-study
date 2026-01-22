@@ -44,7 +44,11 @@ MESSAGES_HEADERS = [
 
 RATINGS_HEADERS = [
     "participant_id", "phase", "bot_type", "topic",
-    "trust", "likability", "similarity", "naturalness", "satisfaction", 
+    # Trust items (S-TIAS)
+    "trust_item1", "trust_item2", "trust_item3", "trust",
+    # Engagement items (UES-SF): Focused Attention (FA) items 1-3, Reward (RW) items 4-6
+    "fa_item1", "fa_item2", "fa_item3", "rw_item1", "rw_item2", "rw_item3",
+    "fa", "rw", "engagement",
     "open_response", "created_at"
 ]
 
@@ -216,14 +220,20 @@ def get_message_count(participant_id: str, phase: int) -> int:
 
 def save_rating(participant_id: str, phase: int, bot_type: str, topic: str, rating: dict):
     """Save bot rating with bot type and topic."""
-    open_response = rating.get('open_response', '').replace('\n', '\\n').replace('\r', '')
+    # Safely extract values; default to empty string when missing
+    def safe(k):
+        v = rating.get(k, '')
+        if isinstance(v, str):
+            return v.replace('\n', '\\n').replace('\r', '')
+        return v
+
+    open_response = safe('open_response')
+
     row = [
         participant_id, phase, bot_type, topic,
-        rating.get('trust', ''),
-        rating.get('likability', ''),
-        rating.get('similarity', ''),
-        rating.get('naturalness', ''),
-        rating.get('satisfaction', ''),
+        safe('trust_item1'), safe('trust_item2'), safe('trust_item3'), safe('trust'),
+        safe('fa_item1'), safe('fa_item2'), safe('fa_item3'), safe('rw_item1'), safe('rw_item2'), safe('rw_item3'),
+        safe('fa'), safe('rw'), safe('engagement'),
         open_response,
         datetime.now().isoformat()
     ]

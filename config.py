@@ -27,15 +27,15 @@ BOT_TEMPERATURE = 0.7
 # =============================================================================
 
 TOPIC_A = {
-    "id": "remote_work",
-    "title": "Is remote work beneficial for society?",
-    "short": "Remote work"
+    "id": "friends",
+    "title": "Is it better to have a few best friends or many casual acquaintances?",
+    "short": "Friends"
 }
 
 TOPIC_B = {
-    "id": "four_day_week",
-    "title": "Is the 4-day work week viable for the economy?",
-    "short": "4-day work week"
+    "id": "specialization",
+    "title": "Is it better to know everything a bit or specialize in one direction",
+    "short": "Specialization"
 }
 
 # =============================================================================
