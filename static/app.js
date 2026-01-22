@@ -433,10 +433,10 @@ function buildRatingForm() {
 
     const engagementQuestions = [
         'I lost myself in the conversation.',
-        'The time spent with the DHA just slipped away.',
+        'The time spent with the agent just slipped away.',
         'I was absorbed in the conversation.',
-        'I would recommend this DHA.',
-        'The conversation with the DHA was rewarding.',
+        'I would recommend this agent.',
+        'The conversation with the agent was rewarding.',
         'I felt involved in this experience.'
     ];
 
