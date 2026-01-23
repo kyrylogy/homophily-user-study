@@ -14,8 +14,8 @@
     <div class="container">
         <!-- Header (hidden on welcome) -->
         <div class="header" id="main-header" style="display: none;">
-            <h1>💬 AI Conversation Study</h1>
-            <p>Understanding human-AI interaction</p>
+            <h1>💬 Homophily study</h1>
+            <p>Understanding human-AI interaction </p>
         </div>
 
         <!-- Progress (hidden on welcome) -->
@@ -228,47 +228,7 @@
             </form>
         </div>
 
-        <!-- Section: Preference -->
-        <div id="preference" class="section">
-            <form id="preference-form">
-                <div class="card">
-                    <h2>Final question</h2>
-                    <p>You've now chatted with two different AI assistants. We'd like to know which one you preferred.</p>
-                    
-                    <div class="form-group">
-                        <label>Which assistant did you prefer working with?</label>
-                        <div class="preference-options">
-                            <label class="preference-option">
-                                <input type="radio" name="preferred_bot" value="first" required>
-                                <span class="preference-label">The first assistant</span>
-                            </label>
-                            <label class="preference-option">
-                                <input type="radio" name="preferred_bot" value="second" required>
-                                <span class="preference-label">The second assistant</span>
-                            </label>
-                            <label class="preference-option">
-                                <input type="radio" name="preferred_bot" value="no_preference" required>
-                                <span class="preference-label">No preference</span>
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Why did you prefer that assistant? (optional)</label>
-                        <textarea name="preference_reason" placeholder="What made one assistant better than the other?"></textarea>
-                    </div>
-                    
-                    <div class="btn-group" style="justify-content: flex-end;">
-                        <button type="button" class="btn btn-primary" onclick="submitPreference()">
-                            Complete study
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M5 12h14M12 5l7 7-7 7"/>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            </form>
-        </div>
+        <!-- Preference section removed: study finalizes immediately after second chat -->
 
         <!-- Section: Complete -->
         <div id="complete" class="section">

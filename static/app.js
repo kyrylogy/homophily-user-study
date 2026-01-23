@@ -9,7 +9,7 @@ let state = {
     group: null,           // A or B (counterbalance)
     isOutlier: false,      // Low E/Low A user (flipped assignment)
     assignment: null,      // Bot assignments from server
-    phase: 0,              // 0=welcome, 1=profile, 2=chat1, 3=rating1, 4=chat2, 5=rating2, 6=preference, 7=done
+    phase: 0,              // 0=welcome, 1=profile, 2=chat1, 3=rating1, 4=chat2, 5=rating2, 7=done
     chatPhase: 1,          // 1 or 2
     messageCount: 0,
     messagesRequired: 6,
@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         profile: document.getElementById('profile'),
         chat: document.getElementById('chat'),
         rating: document.getElementById('rating'),
-        preference: document.getElementById('preference'),
+        // preference removed
         complete: document.getElementById('complete')
     };
     
@@ -105,7 +105,7 @@ function updateProgress() {
         profile: 15,
         chat: state.chatPhase === 1 ? 35 : 65,
         rating: state.chatPhase === 1 ? 50 : 80,
-        preference: 90,
+        // preference removed
         complete: 100
     };
     
@@ -124,7 +124,7 @@ function getProgressText() {
         profile: 'Step 1: your profile',
         chat: `Step ${state.chatPhase + 1}: conversation ${state.chatPhase}`,
         rating: `Step ${state.chatPhase + 2}: rate assistant ${state.chatPhase}`,
-        preference: 'Final step: your preference',
+        // preference removed
         complete: 'Complete!'
     };
     const current = Object.keys(sections).find(k => sections[k] && sections[k].classList.contains('active'));
@@ -412,8 +412,26 @@ function handleChatKeypress(e) {
 }
 
 function proceedToRating() {
+    // Always show the rating questionnaire after each assistant
     buildRatingForm();
     showSection('rating');
+}
+
+async function finalizeStudy() {
+    const chatInfo = getCurrentChat();
+    try {
+        await api('/complete', {
+            participant_id: state.participantId,
+            phase: state.chatPhase,
+            bot_type: chatInfo.bot_type,
+            topic_id: chatInfo.topic.id
+        });
+
+        showSection('complete');
+    } catch (e) {
+        console.error('Failed to finalize study:', e);
+        alert('Failed to finalize study. Please try again.');
+    }
 }
 
 // Rating form
@@ -531,8 +549,8 @@ async function submitRating() {
             state.chatPhase = 2;
             startChat();
         } else {
-            // Show preference selection
-            showSection('preference');
+            // After rating the second chat, finalize the study
+            finalizeStudy();
         }
     } catch (e) {
         console.error('Failed to submit rating:', e);
@@ -543,36 +561,4 @@ async function submitRating() {
     }
 }
 
-// Final preference submission
-async function submitPreference() {
-    const form = document.getElementById('preference-form');
-    if (!form.checkValidity()) {
-        form.reportValidity();
-        return;
-    }
-    
-    const btn = form.querySelector('.btn-primary');
-    btn.classList.add('loading');
-    btn.disabled = true;
-    
-    const formData = new FormData(form);
-    const preferredBot = formData.get('preferred_bot');
-    const reason = formData.get('preference_reason') || '';
-    
-    try {
-        await api('/preference', {
-            participant_id: state.participantId,
-            preferred_bot: preferredBot,
-            reason: reason
-        });
-        
-        await api('/complete', { participant_id: state.participantId });
-        showSection('complete');
-    } catch (e) {
-        console.error('Failed to submit preference:', e);
-        alert('Failed to submit. Please try again.');
-    } finally {
-        btn.classList.remove('loading');
-        btn.disabled = false;
-    }
-}
+// Preference step removed; study finalizes after second chat instead

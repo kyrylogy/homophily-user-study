@@ -12,6 +12,7 @@ import io
 from openai import OpenAI
 import uuid
 import json
+import random
 import config
 import database as db
 
@@ -61,28 +62,76 @@ async def save_profile(request: Request):
     group = participant.get('group', 'A')
     is_outlier = result['is_outlier']
     
-    # Determine bot assignment based on group and outlier status
-    # Group A: Chat1=HighMatch+TopicA, Chat2=LowMatch+TopicB
-    # Group B: Chat1=LowMatch+TopicB, Chat2=HighMatch+TopicA
-    # If outlier (Low E/Low A): FLIP the match labels (their "match" is the reserved bot)
+    # Determine persona assignment via similarity to centroids (A, C, O)
+    # Build participant vector p = [E, A, C, ES, O] where ES = emotional stability = 8 - neuroticism
+    bf = result['big_five']
+    try:
+        p_e = float(bf.get('extraversion', 4.0))
+        p_a = float(bf.get('agreeableness', 4.0))
+        p_c = float(bf.get('conscientiousness', 4.0))
+        p_n = float(bf.get('neuroticism', 4.0))
+        p_o = float(bf.get('openness', 4.0))
+    except Exception:
+        p_e, p_a, p_c, p_n, p_o = 4.0, 4.0, 4.0, 4.0, 4.0
+
+    p_vector = [p_e, p_a, p_c, (8.0 - p_n), p_o]
+
+    # Compute similarity to each centroid
+    best_label = None
+    best_ss = -1.0
+    similarities = {}
+    for label, mu in config.CENTROIDS.items():
+        # normalized mean absolute distance
+        d = sum(abs(p_vector[j] - mu[j]) / 6.0 for j in range(5)) / 5.0
+        ss = 1.0 - d
+        similarities[label] = ss
+        if ss > best_ss:
+            best_ss = ss
+            best_label = label
+
+    persona = best_label or 'A'
+
+    # persist assigned persona
+    try:
+        db.set_assigned_persona(participant_id, persona)
+    except Exception:
+        pass
+
+    # Randomize bot order (one default, one persona) and randomize topic order
+    topics = [config.TOPIC_A, config.TOPIC_B]
+    random.shuffle(topics)
+
+    # Decide whether chat1 is persona or default
+    if random.random() < 0.5:
+        chat1_bot = 'persona'
+        chat2_bot = 'default'
+    else:
+        chat1_bot = 'default'
+        chat2_bot = 'persona'
+
+    chat1_topic = topics[0]
+    chat2_topic = topics[1]
     
-    if group == "A":
-        chat1_bot = "low_match" if is_outlier else "high_match"
-        chat1_topic = config.TOPIC_A
-        chat2_bot = "high_match" if is_outlier else "low_match"
-        chat2_topic = config.TOPIC_B
-    else:  # Group B
-        chat1_bot = "high_match" if is_outlier else "low_match"
-        chat1_topic = config.TOPIC_B
-        chat2_bot = "low_match" if is_outlier else "high_match"
-        chat2_topic = config.TOPIC_A
-    
+    # prepare persona trait vector for frontend (O, C, E, A, N)
+    mu = config.CENTROIDS.get(persona, config.CENTROIDS['A'])
+    # mu is [E, A, C, ES, O]
+    persona_traits = {
+        'Openness': float(mu[4]),
+        'Conscientiousness': float(mu[2]),
+        'Extroversion': float(mu[0]),
+        'Agreeableness': float(mu[1]),
+        'Neuroticism': float(8.0 - mu[3])
+    }
+
     return {
         "status": "ok",
         "assignment": {
             "group": group,
             "is_outlier": is_outlier,
             "big_five": result['big_five'],
+            "persona_label": persona,
+            "persona_traits": persona_traits,
+            "similarities": similarities,
             "chat1": {"bot_type": chat1_bot, "topic": chat1_topic},
             "chat2": {"bot_type": chat2_bot, "topic": chat2_topic}
         }
@@ -112,11 +161,21 @@ async def chat(request: Request):
     # Get chat history
     history = db.get_messages(participant_id, phase)
     
-    # Select prompt based on bot type
-    if bot_type == "high_match":
-        system_prompt = config.HIGH_MATCH_PROMPT.format(topic=topic_title)
+    # Select prompt based on bot_type ('default' or 'persona') and assigned persona
+    participant = db.get_participant(participant_id) or {}
+    if bot_type == 'default':
+        O = C = E = A = N = 4.0
     else:
-        system_prompt = config.LOW_MATCH_PROMPT.format(topic=topic_title)
+        persona_label = participant.get('assigned_persona') or participant.get('persona') or 'A'
+        mu = config.CENTROIDS.get(persona_label, config.CENTROIDS['A'])
+        E = float(mu[0])
+        A = float(mu[1])
+        C = float(mu[2])
+        ES = float(mu[3])
+        O = float(mu[4])
+        N = float(8.0 - ES)
+
+    system_prompt = config.PROMPT_TEMPLATE.format(topic=topic_title, O=O, C=C, E=E, A=A, N=N)
     
     model = config.BOT_MODEL
     temperature = config.BOT_TEMPERATURE
@@ -174,11 +233,21 @@ async def chat_stream(request: Request):
     # Get chat history
     history = db.get_messages(participant_id, phase)
     
-    # Select prompt based on bot type
-    if bot_type == "high_match":
-        system_prompt = config.HIGH_MATCH_PROMPT.format(topic=topic_title)
+    # Select prompt based on bot_type ('default' or 'persona') and assigned persona
+    participant = db.get_participant(participant_id) or {}
+    if bot_type == 'default':
+        O = C = E = A = N = 4.0
     else:
-        system_prompt = config.LOW_MATCH_PROMPT.format(topic=topic_title)
+        persona_label = participant.get('assigned_persona') or participant.get('persona') or 'A'
+        mu = config.CENTROIDS.get(persona_label, config.CENTROIDS['A'])
+        E = float(mu[0])
+        A = float(mu[1])
+        C = float(mu[2])
+        ES = float(mu[3])
+        O = float(mu[4])
+        N = float(8.0 - ES)
+
+    system_prompt = config.PROMPT_TEMPLATE.format(topic=topic_title, O=O, C=C, E=E, A=A, N=N)
     
     model = config.BOT_MODEL
     temperature = config.BOT_TEMPERATURE
@@ -231,19 +300,7 @@ async def save_rating(request: Request):
     return {"status": "ok"}
 
 
-@app.post("/api/preference")
-async def save_preference(request: Request):
-    """Save final bot preference (which bot user preferred)."""
-    data = await request.json()
-    participant_id = data.get("participant_id")
-    preferred_bot = data.get("preferred_bot", "")  # "first" or "second"
-    reason = data.get("reason", "")
-    
-    if not participant_id:
-        raise HTTPException(400, "Missing participant_id")
-    
-    db.save_preference(participant_id, preferred_bot, reason)
-    return {"status": "ok"}
+# Preference endpoint removed — study finalizes immediately after second chat.
 
 
 @app.post("/api/complete")
@@ -251,10 +308,21 @@ async def complete_study(request: Request):
     """Mark study as complete."""
     data = await request.json()
     participant_id = data.get("participant_id")
-    
+    phase = data.get("phase")
+    bot_type = data.get("bot_type", "")
+    topic_id = data.get("topic_id", "")
+
     if not participant_id:
         raise HTTPException(400, "Missing participant_id")
-    
+
+    # If we have phase/bot/topic info, save a metrics-only rating row (no user ratings)
+    try:
+        if phase and bot_type:
+            db.save_rating(participant_id, phase, bot_type, topic_id, {})
+    except Exception:
+        # do not fail completion if metrics saving fails; still mark complete
+        pass
+
     db.mark_complete(participant_id)
     return {"status": "ok"}
 

@@ -32,6 +32,8 @@ PARTICIPANTS_HEADERS = [
     "tipi_6", "tipi_7", "tipi_8", "tipi_9", "tipi_10",
     # Computed Big Five
     "extraversion", "agreeableness", "conscientiousness", "neuroticism", "openness",
+    # Assigned persona label (A/C/O)
+    "assigned_persona",
     # Other
     "interests", "communication_style",
     # Final comparison
@@ -49,6 +51,8 @@ RATINGS_HEADERS = [
     # Engagement items (UES-SF): Focused Attention (FA) items 1-3, Reward (RW) items 4-6
     "fa_item1", "fa_item2", "fa_item3", "rw_item1", "rw_item2", "rw_item3",
     "fa", "rw", "engagement",
+    # Interaction metrics
+    "interaction_duration_seconds", "user_total_chars", "assistant_total_chars",
     "open_response", "created_at"
 ]
 
@@ -133,7 +137,8 @@ def save_profile(participant_id: str, profile: dict):
     with open(PARTICIPANTS_FILE, 'r', newline='', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            if row['id'] == participant_id:
+            # Update only the matched participant
+            if row.get('id') == participant_id:
                 row.update({
                     'is_outlier': str(is_outlier).lower(),
                     'age': profile.get('age', ''),
@@ -157,14 +162,33 @@ def save_profile(participant_id: str, profile: dict):
                     'interests': profile.get('interests', ''),
                     'communication_style': profile.get('communication_style', '')
                 })
-            rows.append(row)
-    
+            # Build a cleaned row dict that only includes known headers
+            clean_row = {k: (row.get(k, '') if row.get(k) is not None else '') for k in PARTICIPANTS_HEADERS}
+            rows.append(clean_row)
+
     with open(PARTICIPANTS_FILE, 'w', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=PARTICIPANTS_HEADERS)
         writer.writeheader()
         writer.writerows(rows)
     
     return {'is_outlier': is_outlier, 'big_five': big_five}
+
+
+def set_assigned_persona(participant_id: str, persona_label: str):
+    """Set the assigned persona label (A/C/O) for a participant."""
+    rows = []
+    with open(PARTICIPANTS_FILE, 'r', newline='', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if row.get('id') == participant_id:
+                row['assigned_persona'] = persona_label
+            clean_row = {k: (row.get(k, '') if row.get(k) is not None else '') for k in PARTICIPANTS_HEADERS}
+            rows.append(clean_row)
+
+    with open(PARTICIPANTS_FILE, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=PARTICIPANTS_HEADERS)
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 def get_participant(participant_id: str) -> dict:
@@ -229,32 +253,53 @@ def save_rating(participant_id: str, phase: int, bot_type: str, topic: str, rati
 
     open_response = safe('open_response')
 
+    # Compute interaction metrics from messages.csv for this participant & phase
+    user_total = 0
+    assistant_total = 0
+    times = []
+    if MESSAGES_FILE.exists():
+        with open(MESSAGES_FILE, 'r', newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                try:
+                    if row.get('participant_id') == participant_id and int(row.get('phase', 0)) == int(phase):
+                        content = row.get('content', '').replace('\\n', '\n')
+                        times.append(row.get('created_at'))
+                        if row.get('role') == 'user':
+                            user_total += len(content)
+                        elif row.get('role') == 'assistant':
+                            assistant_total += len(content)
+                except Exception:
+                    continue
+
+    # Compute duration in seconds between earliest and latest timestamp for the phase (if available)
+    interaction_duration = ''
+    try:
+        if times:
+            times_dt = [datetime.fromisoformat(t) for t in times if t]
+            if times_dt:
+                duration = (max(times_dt) - min(times_dt)).total_seconds()
+                interaction_duration = f"{duration:.3f}"
+    except Exception:
+        interaction_duration = ''
+
     row = [
         participant_id, phase, bot_type, topic,
         safe('trust_item1'), safe('trust_item2'), safe('trust_item3'), safe('trust'),
         safe('fa_item1'), safe('fa_item2'), safe('fa_item3'), safe('rw_item1'), safe('rw_item2'), safe('rw_item3'),
         safe('fa'), safe('rw'), safe('engagement'),
+        interaction_duration, user_total, assistant_total,
         open_response,
         datetime.now().isoformat()
     ]
+
     _append_row(RATINGS_FILE, row)
 
 
 def save_preference(participant_id: str, preferred_bot: str, reason: str):
     """Save final bot preference."""
-    rows = []
-    with open(PARTICIPANTS_FILE, 'r', newline='', encoding='utf-8') as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            if row['id'] == participant_id:
-                row['preferred_bot'] = preferred_bot
-                row['preference_reason'] = reason.replace('\n', '\\n').replace('\r', '')
-            rows.append(row)
-    
-    with open(PARTICIPANTS_FILE, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=PARTICIPANTS_HEADERS)
-        writer.writeheader()
-        writer.writerows(rows)
+    # Preference storage removed from active flow; function retained for backward compatibility but does nothing.
+    return
 
 
 def mark_complete(participant_id: str):
