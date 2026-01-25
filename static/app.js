@@ -249,7 +249,7 @@ function updateChatHeader() {
     const topicTitle = chatInfo.topic.title || 'Discussion';
     
     document.querySelector('.chat-header h2').textContent = `Conversation ${state.chatPhase} of 2`;
-    document.querySelector('.chat-header .subtitle').textContent = `Topic: ${topicTitle}`;
+    document.querySelector('.chat-header .subtitle').textContent = `Come up with 3 arguments for an essay regarding the following question: ${topicTitle}`;
     
     // Update topic display if exists
     const topicDisplay = document.getElementById('chat-topic');

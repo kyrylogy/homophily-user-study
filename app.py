@@ -16,7 +16,7 @@ import random
 import config
 import database as db
 
-app = FastAPI(title="Homophily Study", description="AI Conversation Study Platform")
+app = FastAPI(title="Homophily study", description="AI Conversation Study Platform")
 
 # Initialize
 client = OpenAI(api_key=config.OPENAI_API_KEY)
@@ -80,6 +80,7 @@ async def save_profile(request: Request):
     best_label = None
     best_ss = -1.0
     similarities = {}
+    # remove B from centroid consi
     for label, mu in config.CENTROIDS.items():
         # normalized mean absolute distance
         d = sum(abs(p_vector[j] - mu[j]) / 6.0 for j in range(5)) / 5.0
@@ -89,7 +90,8 @@ async def save_profile(request: Request):
             best_ss = ss
             best_label = label
 
-    persona = best_label or 'A'
+
+    persona = best_label 
 
     # persist assigned persona
     try:
@@ -114,6 +116,7 @@ async def save_profile(request: Request):
     
     # prepare persona trait vector for frontend (O, C, E, A, N)
     mu = config.CENTROIDS.get(persona, config.CENTROIDS['A'])
+
     # mu is [E, A, C, ES, O]
     persona_traits = {
         'Openness': float(mu[4]),
@@ -165,6 +168,7 @@ async def chat(request: Request):
     participant = db.get_participant(participant_id) or {}
     if bot_type == 'default':
         O = C = E = A = N = 4.0
+        agent_type = 'B'
     else:
         persona_label = participant.get('assigned_persona') or participant.get('persona') or 'A'
         mu = config.CENTROIDS.get(persona_label, config.CENTROIDS['A'])
@@ -174,8 +178,9 @@ async def chat(request: Request):
         ES = float(mu[3])
         O = float(mu[4])
         N = float(8.0 - ES)
+        agent_type = persona_label
 
-    system_prompt = config.PROMPT_TEMPLATE.format(topic=topic_title, O=O, C=C, E=E, A=A, N=N)
+    system_prompt = config.PROMPT_TEMPLATE.format(topic=topic_title, O=O, C=C, E=E, A=A, N=N, AGENT_TYPE=agent_type)
     
     model = config.BOT_MODEL
     temperature = config.BOT_TEMPERATURE
@@ -237,6 +242,7 @@ async def chat_stream(request: Request):
     participant = db.get_participant(participant_id) or {}
     if bot_type == 'default':
         O = C = E = A = N = 4.0
+        agent_type = 'B'
     else:
         persona_label = participant.get('assigned_persona') or participant.get('persona') or 'A'
         mu = config.CENTROIDS.get(persona_label, config.CENTROIDS['A'])
@@ -246,8 +252,9 @@ async def chat_stream(request: Request):
         ES = float(mu[3])
         O = float(mu[4])
         N = float(8.0 - ES)
+        agent_type = persona_label
 
-    system_prompt = config.PROMPT_TEMPLATE.format(topic=topic_title, O=O, C=C, E=E, A=A, N=N)
+    system_prompt = config.PROMPT_TEMPLATE.format(topic=topic_title, O=O, C=C, E=E, A=A, N=N, AGENT_TYPE=agent_type)
     
     model = config.BOT_MODEL
     temperature = config.BOT_TEMPERATURE
