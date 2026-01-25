@@ -440,7 +440,7 @@ function buildRatingForm() {
     if (!state.config || !container) return;
 
     // Update title
-    const title = document.querySelector('#rating .card h2');
+    const title = document.getElementById('rating-title') || document.querySelector('#rating .card h2');
     if (title) title.textContent = `Rate assistant ${state.chatPhase}`;
 
     const trustQuestions = [
